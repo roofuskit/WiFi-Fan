@@ -57,6 +57,8 @@ void button_off() {
       digitalWrite(buttonPin, LOW);
       delay(500);
       buttonPushCounter = 0;
+      Serial.println("OFF");
+      client.publish(outTopic, "OFF");
       status();
 }
 
