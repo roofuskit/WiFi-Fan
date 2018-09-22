@@ -42,6 +42,45 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
+void button_up() {
+      digitalWrite(buttonPin, HIGH);
+      delay(250);
+      digitalWrite(buttonPin, LOW);
+      delay(250);
+      buttonPushCounter++;
+      status();
+}
+
+void button_off() {
+      digitalWrite(buttonPin, HIGH);
+      delay(250);
+      digitalWrite(buttonPin, LOW);
+      delay(500);
+      buttonPushCounter = 0;
+      status();
+}
+
+void status() {
+        if (buttonPushCounter > 4) {
+        buttonPushCounter = 0;
+        Serial.println("OFF");
+        client.publish(outTopic, "OFF");
+        }
+      else if (buttonPushCounter == 1)  {
+        Serial.println("LOW");
+        client.publish(outTopic, "LOW");
+      }
+      else if (buttonPushCounter == 2)  {
+        Serial.println("MED");  
+        client.publish(outTopic, "MED");
+      }
+      else if (buttonPushCounter == 3)  {
+        Serial.println("HIGH");  
+        client.publish(outTopic, "HIGH");
+      }
+}
+
+
 void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Message arrived [");
   Serial.print(topic);
@@ -52,12 +91,80 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 
   // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '1') {
-    digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
-    // but actually the LED is on; this is because
-    // it is acive low on the ESP-01)
-  } else {
-    digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
+  if ((char)payload[0] == '4') {
+    button_up();
+  } 
+  else if ((char)payload[0] == '1') {
+    if (buttonPushCounter == 0){
+      button_up();
+    }
+    else if (buttonPushCounter == 1){
+      delay(250);
+      status();
+    }
+    else if (buttonPushCounter == 2){
+      button_up();
+      button_off();
+      button_up();
+    }
+    else if (buttonPushCounter == 3){
+      button_off();
+      button_up();
+    }
+  }
+  else if ((char)payload[0] == '2') {
+    if (buttonPushCounter == 0){
+      button_up();
+      button_up();
+    }
+    else if (buttonPushCounter == 1){
+      button_up();
+    }
+    else if (buttonPushCounter == 2){
+      delay(250);
+      status();
+    }
+    else if (buttonPushCounter == 3){
+      button_off();
+      button_up();
+      button_up();
+    }
+  }
+  else if ((char)payload[0] == '3') {
+    if (buttonPushCounter == 0){
+      button_up();
+      button_up();
+      button_up();
+    }
+    else if (buttonPushCounter == 1){
+      button_up();
+      button_up();
+    }
+    else if (buttonPushCounter == 2){
+      button_up();
+    }
+    else if (buttonPushCounter == 3){
+      delay(250);
+      status();
+    }
+  }
+  else if ((char)payload[0] == '0') {
+    if (buttonPushCounter == 0){
+      delay(250);
+      status();
+    }
+    else if (buttonPushCounter == 1){
+      button_up();
+      button_up();
+      button_off();
+    }
+    else if (buttonPushCounter == 2){
+      button_up();
+      button_off();
+    }
+    else if (buttonPushCounter == 3){
+      button_off();
+    }
   }
 
 }
@@ -73,7 +180,7 @@ void reconnect() {
     if (client.connect(clientId.c_str())) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish(outTopic, "hello world");
+      client.publish(outTopic, "OFF");
       // ... and resubscribe
       client.subscribe(inTopic);
     } else {
@@ -128,23 +235,7 @@ void loop() {
       //Serial.print("number of button pushes:  ");
       //Serial.println(buttonPushCounter);
       delay(150);
-      if (buttonPushCounter > 4) {
-        buttonPushCounter = 0;
-        Serial.println("OFF");
-        client.publish(outTopic, "OFF");
-        }
-      else if (buttonPushCounter == 1)  {
-        Serial.println("LOW");
-        client.publish(outTopic, "LOW");
-      }
-      else if (buttonPushCounter == 2)  {
-        Serial.println("MED");  
-        client.publish(outTopic, "MED");
-      }
-      else if (buttonPushCounter == 3)  {
-        Serial.println("HIGH");  
-        client.publish(outTopic, "HIGH");
-      }
+      status();
     } 
     else {
       // if the current state is LOW then the button
