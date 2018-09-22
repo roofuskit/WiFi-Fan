@@ -1,17 +1,24 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-const char* outTopic = "stat/kiddo_fan/speed";
-const char* inTopic = "cmd/kiddo_fan/speed";
-const char* ssid = "Ashley";
-const char* password = "9612030151";
-const char* mqtt_server = "192.168.1.115";
-const int  buzzerPin = 5;    // the pin that the pushbutton is attached to
-const int buttonPin = 15;       // the pin that the LED is attached to
+const char* outTopic = "YOUR_TOPIC_HERE"; // status topic for your fan.
+const char* inTopic = "YOUR_TOPIC_HERE"; // command topic for your fan.
+const int pyldOFF = 0;
+const int pyldLOW = 1;
+const int pyldMED = 2;
+const int pyldHIGH = 3;
+const int pyldPRESS = 4;
+const char* ssid = "SSID_HERE"; // SSID
+const char* password = "PASSWORD"; // PASSWORD
+const char* mqtt_server = "MQTT_ADDRESS"; // address of your MQTT broker, do not include the port.
+const int  buzzerPin = 5;    // the pin that the buzzer is attached to
+const int buttonPin = 15;       // the pin that the pushbutton is attached to
 
 // Variables will change:
 int buttonPushCounter = 0;   // counter for the number of button presses
 int buttonState = 0;         // current state of the button
 int lastButtonState = 0;     // previous state of the button
+
+//WiFi and MQTT network setup
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -42,27 +49,28 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-void button_up() {
+// END WiFi and MQTT setup
+
+void button_up() {  // normal button press
       digitalWrite(buttonPin, HIGH);
       delay(250);
       digitalWrite(buttonPin, LOW);
       delay(250);
-      buttonPushCounter++;
+      buttonPushCounter++;  //increment the button
       status();
 }
 
-void button_off() {
+void button_off() {  // button press with an extra delay for long tone when the fan turns off
       digitalWrite(buttonPin, HIGH);
       delay(250);
       digitalWrite(buttonPin, LOW);
       delay(500);
-      buttonPushCounter = 0;
+      buttonPushCounter = 0; // reset the counter to 0 as there are only 4 states for the fan
       Serial.println("OFF");
       client.publish(outTopic, "OFF");
-      status();
 }
 
-void status() {
+void status() {  // broadcast the current status of the fan via serial and MQTT
         if (buttonPushCounter > 4) {
         buttonPushCounter = 0;
         Serial.println("OFF");
@@ -83,20 +91,19 @@ void status() {
 }
 
 
-void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
+void callback(char* topic, byte* payload, unsigned int length) { // callback function to receive incomming MQTT messages
+  Serial.print("Message arrived ["); // announce the message
+  Serial.print(topic); // print the topic
+  Serial.print("] "); 
   for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+    Serial.print((char)payload[i]);  // print the payload
   }
   Serial.println();
 
-  // Switch on the LED if an 1 was received as first character
-  if ((char)payload[0] == '4') {
+  if ((char)payload[0] == pyldPRESS) { // this payload is a single button press
     button_up();
   } 
-  else if ((char)payload[0] == '1') {
+  else if ((char)payload[0] == pyldLOW) { // this payload is LOW
     if (buttonPushCounter == 0){
       button_up();
     }
@@ -114,7 +121,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       button_up();
     }
   }
-  else if ((char)payload[0] == '2') {
+  else if ((char)payload[0] == pyldMED) {  // this payload is MED
     if (buttonPushCounter == 0){
       button_up();
       button_up();
@@ -132,7 +139,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       button_up();
     }
   }
-  else if ((char)payload[0] == '3') {
+  else if ((char)payload[0] == pyldHIGH) {  // this payload is HIGH
     if (buttonPushCounter == 0){
       button_up();
       button_up();
@@ -150,7 +157,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       status();
     }
   }
-  else if ((char)payload[0] == '0') {
+  else if ((char)payload[0] == pyldOFF) {  // this payload is OFF
     if (buttonPushCounter == 0){
       delay(250);
       status();
@@ -171,7 +178,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 }
 
-void reconnect() {
+void reconnect() { // connect to MQTT broker
   // Loop until we're reconnected
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
@@ -195,7 +202,7 @@ void reconnect() {
   }
 }
 
-void setup() {
+void setup() {  // set pinmodes, open serial connection, setup WiFi and MQTT
   // initialize the Buzzer pin as a input:
   pinMode(buzzerPin, INPUT);
   // initialize the Button as an output:
@@ -209,7 +216,7 @@ void setup() {
 
 
 void loop() {
-  if (!client.connected()) {
+  if (!client.connected()) { // if the MQTT broker isn't connected, reconnect
     reconnect();
   }
   client.loop();
