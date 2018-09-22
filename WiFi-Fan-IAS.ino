@@ -1,9 +1,16 @@
-#include <ESP8266WiFi.h>
+#define COMPDATE __DATE__ __TIME__
+#define MODEBUTTON 0                                        // Button pin on the esp for selecting modes. D3 for the Wemos!
+
 #include <PubSubClient.h>
+#include <IOTAppStory.h>                                    // IotAppStory.com library
+IOTAppStory IAS(COMPDATE, MODEBUTTON);                      // Initialize IotAppStory
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+
+// ================================================ EXAMPLE VARS =========================================
 const char* outTopic = "stat/kiddo_fan/speed";
 const char* inTopic = "cmd/kiddo_fan/speed";
-const char* ssid = "Ashley";
-const char* password = "9612030151";
 const char* mqtt_server = "192.168.1.115";
 const int  buzzerPin = 5;    // the pin that the pushbutton is attached to
 const int buttonPin = 15;       // the pin that the LED is attached to
@@ -12,35 +19,9 @@ const int buttonPin = 15;       // the pin that the LED is attached to
 int buttonPushCounter = 0;   // counter for the number of button presses
 int buttonState = 0;         // current state of the button
 int lastButtonState = 0;     // previous state of the button
-
-WiFiClient espClient;
-PubSubClient client(espClient);
 long lastMsg = 0;
 char msg[50];
 int value = 0;
-
-void setup_wifi() {
-
-  delay(10);
-  // We start by connecting to a WiFi network
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  randomSeed(micros());
-
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-}
 
 void button_up() {
       digitalWrite(buttonPin, HIGH);
@@ -195,20 +176,100 @@ void reconnect() {
   }
 }
 
+
+// ================================================ SETUP ================================================
 void setup() {
+  /* TIP! delete lines below when not used */
+  IAS.preSetDeviceName("WiFi-Fan");                       // preset deviceName this is also your MDNS responder
+  //IAS.preSetAutoUpdate(false);                            // automaticUpdate (true, false)
+  //IAS.preSetAutoConfig(false);                            // automaticConfig (true, false)
+  //IAS.preSetWifi("ssid","password");                      // preset Wifi
+  /* TIP! Delete Wifi cred. when you publish your App. */
+  
+
+
+  // You can configure callback functions that can give feedback to the app user about the current state of the application.
+  // In this example we use serial print to demonstrate the call backs. But you could use leds etc.
+
+  IAS.onModeButtonShortPress([]() {
+    Serial.println(F(" If mode button is released, I will enter in firmware update mode."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onModeButtonLongPress([]() {
+    Serial.println(F(" If mode button is released, I will enter in configuration mode."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onModeButtonVeryLongPress([]() {
+    Serial.println(F(" If mode button is released, I won't do anything unless you program me to."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+    /* TIP! You can use this callback to put your app on it's own configuration mode */
+  });
+  
+  /* 
+  IAS.onModeButtonNoPress([]() {
+    Serial.println(F(" Mode Button is not pressed."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+  
+  IAS.onFirstBoot([]() {                              
+    Serial.println(F(" Run or display something on the first time this app boots"));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onFirmwareUpdateCheck([]() {
+    Serial.println(F(" Checking if there is a firmware update available."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onFirmwareUpdateDownload([]() {
+    Serial.println(F(" Downloading and Installing firmware update."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onFirmwareUpdateError([]() {
+    Serial.println(F(" Update failed...Check your logs"));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onConfigMode([]() {
+    Serial.println(F(" Starting configuration mode. Search for my WiFi and connect to 192.168.4.1."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+  */
+
+	/* TIP! delete the lines above when not used */
+ 
+  //IAS.begin();
+  IAS.begin('P');                                     // Optional parameter: What to do with EEPROM on First boot of the app? 'F' Fully erase | 'P' Partial erase(default) | 'L' Leave intact
+
+  IAS.setCallHome(true);                              // Set to true to enable calling home frequently (disabled by default)
+  IAS.setCallHomeInterval(60);                        // Call home interval in seconds, use 60s only for development. Please change it to at least 2 hours in production
+
+
+  //-------- Your Setup starts from here ---------------
+  
   // initialize the Buzzer pin as a input:
   pinMode(buzzerPin, INPUT);
   // initialize the Button as an output:
   pinMode(buttonPin, OUTPUT);
   // initialize serial communication:
   Serial.begin(115200);
-  setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
+
+
 }
 
 
+
+// ================================================ LOOP =================================================
 void loop() {
+  IAS.loop();                                   // this routine handles the calling home functionality and reaction of the MODEBUTTON pin. If short press (<4 sec): update of sketch, long press (>7 sec): Configuration
+
+
+  //-------- Your Sketch starts from here ---------------
   if (!client.connected()) {
     reconnect();
   }
